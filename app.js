@@ -17,7 +17,7 @@ async function loadCity(city){
   setLoading(true);state.previous=null;
   const response=await fetch(`data/${CITY_FILES[city]}.json`);
   if(!response.ok)throw new Error(`Could not load ${city}`);
-  state.data=await response.json();state.selected=new Set(state.data.locations.slice(0,Math.min(3,state.data.locations.length)).map((_,i)=>i));state.applied=new Set(state.selected);
+  state.data=await response.json();const maxSites=state.data.locations.length;const targetSelect=$("siteTarget");targetSelect.innerHTML=Array.from({length:maxSites},(_,i)=>`<option value="${i+1}">${i+1} site${i?"s":""}</option>`).join("");targetSelect.value=String(Math.min(3,maxSites));state.selected=new Set(state.data.locations.slice(0,+targetSelect.value).map((_,i)=>i));state.applied=new Set(state.selected);
   buildRouteIndex();renderSites();updateCount();calculate();$("mapTitle").textContent=`${city}, NC`;setLoading(false);
 }
 
