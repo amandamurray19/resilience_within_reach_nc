@@ -1,6 +1,6 @@
 const CITY_FILES={Asheville:"asheville",Greenville:"greenville",Lumberton:"lumberton","Rocky Mount":"rocky_mount"};
 const $=id=>document.getElementById(id);
-const state={data:null,selected:new Set(),applied:new Set(),markers:[],blockLayer:null,routeByBlock:[],previous:null,dirty:false};
+const state={data:null,selected:new Set(),applied:new Set(),markers:[],blockLayer:null,routeByBlock:[],previous:null,dirty:false,factors:[]};
 let map;
 
 function fmt(value,digits=0){return Number(value||0).toLocaleString(undefined,{maximumFractionDigits:digits})}
@@ -18,7 +18,7 @@ async function loadCity(city){
   const response=await fetch(`data/${CITY_FILES[city]}.json`);
   if(!response.ok)throw new Error(`Could not load ${city}`);
   state.data=await response.json();state.selected=new Set(state.data.locations.slice(0,Math.min(3,state.data.locations.length)).map((_,i)=>i));state.applied=new Set(state.selected);
-  buildRouteIndex();renderSites();renderMap();updateCount();calculate();$("mapTitle").textContent=`${city}, NC`;setLoading(false);
+  buildRouteIndex();renderSites();updateCount();calculate();$("mapTitle").textContent=`${city}, NC`;setLoading(false);
 }
 
 function buildRouteIndex(){
@@ -52,7 +52,7 @@ function renderMap(){
   const populated=state.data.blocks.filter(block=>block[3]>0&&block[1]!=null&&block[2]!=null);
   state.blockLayer=L.layerGroup(populated.map(block=>L.circleMarker([block[1],block[2]],{radius:Math.max(1.5,Math.min(5,Math.sqrt(block[3])/4)),color:"#1f555b",weight:.4,fillColor:"#5ca4af",fillOpacity:.18,interactive:false}))).addTo(map);
   state.data.locations.forEach((site,index)=>{const marker=L.marker([site[4],site[5]],{icon:siteIcon(state.selected.has(index)),zIndexOffset:state.selected.has(index)?500:0}).bindPopup(`<strong>${site[1]}</strong><br><small>${site[2]}<br>${site[3]||"Address unavailable"}${site[6]?`<br>Estimated capacity: ${fmt(site[6])}`:""}</small>`).addTo(map);marker.on("click",()=>{});state.markers.push(marker)});
-  const bounds=L.latLngBounds(state.data.locations.filter(site=>site[4]!=null&&site[5]!=null).map(site=>[site[4],site[5]]));if(bounds.isValid())map.fitBounds(bounds.pad(.15));setTimeout(()=>map.invalidateSize(),0);
+  const bounds=L.latLngBounds(state.data.locations.filter(site=>site[4]!=null&&site[5]!=null).map(site=>[site[4],site[5]]));if(bounds.isValid())map.fitBounds(bounds.pad(.15));requestAnimationFrame(()=>map.invalidateSize());
 }
 function updateSiteMarkers(){state.markers.forEach((marker,index)=>{marker.setIcon(siteIcon(state.selected.has(index)));marker.setZIndexOffset(state.selected.has(index)?500:0)})}
 
@@ -92,11 +92,35 @@ function renderTable(groups){
   $("tableMode").textContent=$("modeSelect").value==="walk"?`WALKING · ${(+$("walkCap").value).toFixed(1)} KM`:`TRANSIT · ${$("transitTime").value} MIN + ${$("transitWalk").value} KM WALK`;
 }
 
-$("citySelect").addEventListener("change",event=>loadCity(event.target.value).catch(showError));
+const FACTORS=[
+  {id:0,label:"Total population",description:"Residents covered by the proposed network."},
+  {id:1,label:"Older adults · 65+",description:"Estimated residents age 65 and older."},
+  {id:2,label:"Residents below poverty",description:"Estimated residents below the poverty level."},
+  {id:3,label:"Households without a vehicle",description:"Estimated no-vehicle households."},
+  {id:4,label:"People with disabilities",description:"Estimated residents with a disability."},
+  {id:5,label:"High social vulnerability",description:"Residents in the highest SVI quartile."},
+  {id:6,label:"Flood risk population",description:"Residents in blocks mapped within flood areas."},
+  {id:7,label:"Heat risk population",description:"Residents in the hottest quartile of sampled blocks."}
+];
+function renderFactorChoices(){
+  $("factorChoices").innerHTML=FACTORS.map(f=>`<div class="factor-choice"><input type="checkbox" data-factor="${f.id}" id="factor-${f.id}" ${[0,1,3,6,7].includes(f.id)?"checked":""}><label class="factor-name" for="factor-${f.id}"><strong>${f.label}</strong><small>${f.description}</small></label><div class="factor-settings"><select aria-label="${f.label} access mode" data-mode="${f.id}"><option value="both">Both modes</option><option value="walk">Walking</option><option value="transit">Transit + walk</option></select><select class="weight-select" aria-label="${f.label} weight" data-weight="${f.id}">${Array.from({length:11},(_,w)=>`<option value="${w}" ${w===5?"selected":""}>${w}/10</option>`).join("")}</select></div></div>`).join("");
+  $("factorChoices").querySelectorAll("input,select").forEach(el=>el.addEventListener("change",updateWeightPreview));updateWeightPreview();
+}
+function updateWeightPreview(){
+  const selected=[...$("factorChoices").querySelectorAll("input:checked")];state.factors=selected.map(input=>{const id=+input.dataset.factor;return {id,label:FACTORS.find(f=>f.id===id).label,mode:$("factorChoices").querySelector(`[data-mode="${id}"]`).value,weight:+$("factorChoices").querySelector(`[data-weight="${id}"]`).value}});
+  const sum=state.factors.reduce((a,f)=>a+f.weight,0);$("weightPreview").innerHTML=`<strong>${state.factors.length} factors selected</strong> · Weights total ${sum}/10 points per factor. At least one factor and a weight above 0 are required.`;
+}
+$("buildNetwork").addEventListener("click",async()=>{
+  updateWeightPreview();if(!state.factors.length||state.factors.every(f=>f.weight===0)){alert("Select at least one factor and give one factor a weight above 0.");return}
+  const city=$("setupCity").value;$("citySelect").value=city;$("setupScreen").hidden=true;$("resultsScreen").hidden=false;
+  try{await loadCity(city);$("siteTarget").dispatchEvent(new Event("change"));renderMap();}catch(error){showError(error)}
+});
+$("citySelect").addEventListener("change",event=>{$("setupCity").value=event.target.value;loadCity(event.target.value).then(renderMap).catch(showError)});
 $("siteSearch").addEventListener("input",renderSites);
 $("selectAll").addEventListener("click",()=>{state.selected=state.selected.size===state.data.locations.length?new Set():new Set(state.data.locations.map((_,i)=>i));renderSites();updateCount();updateSiteMarkers();markDirty()});
 [$("walkCap"),$("transitTime"),$("transitWalk")].forEach(control=>control.addEventListener("change",markDirty));
 $("modeSelect").addEventListener("change",()=>{if(!state.data)return;const access=accessForNetwork(),groups=groupCoverage(access,$("modeSelect").value);renderGroups(groups);renderTable(groups)});
-$("rerun").addEventListener("click",()=>{$("rerun").classList.add("loading");$("rerun").innerHTML="<span>↻</span> CALCULATING…";setTimeout(calculate,80)});
+$("rerun").addEventListener("click",()=>{$("rerun").classList.add("loading");$("rerun").innerHTML="<span>↻</span> CALCULATING…";setTimeout(()=>{calculate();renderMap()},80)});
 function showError(error){setLoading(false);console.error(error);document.body.insertAdjacentHTML("afterbegin",`<div class="notice" style="margin:10px"><span>!</span><p><strong>Could not load the planner data.</strong> ${error.message}. GitHub Pages or a local web server is required.</p></div>`)}
-loadCity("Asheville").catch(showError);
+$("siteTarget").addEventListener("change",()=>{const count=+$('siteTarget').value;state.selected=new Set(state.data.locations.slice(0,count).map((_,i)=>i));renderSites();updateCount();markDirty()});
+renderFactorChoices();
