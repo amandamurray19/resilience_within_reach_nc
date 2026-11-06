@@ -5,6 +5,7 @@ import csv
 import json
 from collections import defaultdict
 from pathlib import Path
+from shapely.geometry import mapping, shape
 
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT.parent
@@ -104,6 +105,18 @@ def build_city(city: str, slug: str) -> None:
     }
     target = ROOT / "data" / f"{slug}.json"
     target.write_text(json.dumps(output, separators=(",", ":")), encoding="utf-8")
+    geometry_path = SOURCE / "census" / city.replace(" ", "_") / f"{city.replace(' ', '_')}_Census2020_blocks.geojson"
+    block_population = {block[0]: block[3] for block in blocks}
+    raw_geometry = json.loads(geometry_path.read_text(encoding="utf-8"))
+    features = []
+    for feature in raw_geometry["features"]:
+        geoid = feature["properties"]["GEOID"]
+        if geoid not in block_population:
+            continue
+        simplified = shape(feature["geometry"]).simplify(0.000025, preserve_topology=True)
+        features.append({"type": "Feature", "properties": {"g": geoid, "p": block_population[geoid]}, "geometry": mapping(simplified)})
+    geometry_target = ROOT / "data" / f"{slug}_blocks.json"
+    geometry_target.write_text(json.dumps({"type": "FeatureCollection", "features": features}, separators=(",", ":")), encoding="utf-8")
     print(f"{city}: {len(blocks):,} blocks, {len(locations):,} sites, {len(routes):,} routes -> {target.stat().st_size / 1_000_000:.1f} MB")
 
 
