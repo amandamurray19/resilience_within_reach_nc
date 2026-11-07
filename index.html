@@ -40,10 +40,19 @@
         </section>
       </div>
 
-      <div class="insight-grid">
-        <article class="detail-card"><div class="detail-head"><div><p class="eyebrow">POPULATION COVERAGE</p><h3>Coverage by demographic group</h3></div><select id="modeSelect" aria-label="Coverage travel mode"><option value="walk">Walking</option><option value="transit">Transit + walk</option></select></div><div id="groupChart" class="group-chart"></div><div class="chart-note">Share of each group able to reach at least one selected hub under the chosen access mode.</div></article>
-        <article class="detail-card"><div class="detail-head"><div><p class="eyebrow">TRAVEL TIME</p><h3>Time to nearest selected hub</h3></div><select id="timeModeSelect" aria-label="Travel-time mode"><option value="walk">Walking</option><option value="transit">Transit</option></select></div><div class="time-stats"><div><span>MEAN</span><strong id="timeMean">—</strong></div><div><span>90TH PCTL.</span><strong id="timeP90">—</strong></div><div><span>MEDIAN</span><strong id="timeMedian">—</strong></div></div><div class="histogram"><span class="axis-y">NUMBER OF PEOPLE</span><div class="spark-area"><div class="spark-y"><span id="timeHistYMax">—</span><span id="timeHistYMid">—</span><span>0</span></div><div id="timeSpark" class="spark"></div></div><div class="spark-x"><span>0</span><b id="timeAxisLabel">WALKING TIME TO NEAREST HUB</b><span id="timeHistXMax">—</span></div></div><div class="chart-note">Population-weighted distribution of travel time to the fastest selected hub.</div></article>
-      </div>
+      <section class="analytics-section">
+        <div class="analytics-head"><div><p class="eyebrow">04 / NETWORK PERFORMANCE</p><h2>Who can reach the network?</h2></div><label>ACCESS MODE<select id="accessModeSelect" aria-label="Network access mode"><option value="walk">Walking</option><option value="transit">Transit + walk</option></select></label></div>
+        <div class="headline-metrics">
+          <div><span>POPULATION COVERAGE</span><strong id="overallCoverage">—</strong><small>of all residents</small></div>
+          <div><span>PEOPLE REACHED</span><strong id="peopleReached">—</strong><small id="peopleReachedTotal">of — residents</small></div>
+          <div><span>MEAN TRAVEL TIME</span><strong id="timeMean">—</strong><small>population-weighted</small></div>
+          <div><span>90TH PERCENTILE</span><strong id="timeP90">—</strong><small id="timeMedianLabel">Median —</small></div>
+        </div>
+        <div class="insight-grid">
+          <article class="detail-card"><div class="detail-head"><div><p class="eyebrow">POPULATION COVERAGE</p><h3>Coverage by demographic group</h3></div></div><div id="groupChart" class="group-chart"></div><div class="chart-note">Share of each group able to reach at least one selected hub under the selected access mode.</div></article>
+          <article class="detail-card"><div class="detail-head"><div><p class="eyebrow">TRAVEL TIME</p><h3>Time to nearest selected hub</h3></div></div><div class="histogram"><div class="histogram-body"><span class="axis-y">NUMBER OF PEOPLE</span><div class="spark-y"><span id="timeHistYMax">—</span><span id="timeHistYMid">—</span><span>0</span></div><div id="timeSpark" class="spark"></div></div><div class="histogram-ticks"><span>0</span><span id="timeHistXMax">—</span></div><div class="axis-x" id="timeAxisLabel">WALKING TIME TO NEAREST HUB</div></div><div class="chart-note">Population-weighted distribution of travel time to the fastest selected hub.</div></article>
+        </div>
+      </section>
       <div class="notice"><span>✳</span><p><strong>Screening estimate.</strong> Results use prepared Census, ACS, heat, flood, walking, and scheduled-transit data. Compare scenarios here, then validate with local partners.</p></div>
     </section>
     <footer><span>RESILIENCE WITHIN REACH <b>•</b> ISEPS</span><span>Planning prototype · Data vintages vary by measure</span></footer>
